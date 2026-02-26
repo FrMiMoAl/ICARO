@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Requisitos del Sistema Robótico de Inspección Vertical</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Oswald:wght@400;600&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #080f1e;
+      font-family: 'Roboto', system-ui, sans-serif;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    header {
+      text-align: center;
+      padding: 36px 16px 24px;
+      border-bottom: 1px solid #1e293b;
+    }
+    header h1 { font-size: 22px; color: #60a5fa; letter-spacing: 1px; font-family: 'Oswald', sans-serif; text-transform: uppercase; }
+    header p  { font-size: 13px; color: #64748b; margin-top: 6px; }
+
+    #slides {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 36px 16px 80px;
+      gap: 32px;
+    }
+
+    /* ── Slide wrapper: scales 1280×720 to viewport ── */
+    .slide-outer {
+      width: min(1280px, 96vw);
+    }
+    .slide-label {
+      font-size: 11px;
+      color: #475569;
+      margin-bottom: 6px;
+      padding-left: 2px;
+      font-family: 'Roboto Mono', monospace;
+      letter-spacing: 0.5px;
+    }
+    .slide-scaler {
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      border-radius: 10px;
+      box-shadow: 0 16px 48px rgba(0,0,0,.65);
+    }
+    /* The actual 1280×720 slide, scaled down via transform */
+    .slide-canvas {
+      width: 1280px;
+      height: 720px;
+      transform-origin: top left;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ════════════════════════════════════════
+       SHARED SLIDE STYLES
+       ════════════════════════════════════════ */
+
+    /* ── SLIDE BASE ── */
+    .slide {
+      width: 1280px;
+      height: 720px;
+      position: relative;
+      overflow: hidden;
+      background: #0f172a;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── BACKGROUNDS ── */
+    .grid-overlay {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+    .bg-accent-shape {
+      position: absolute; top: 0; right: 0;
+      width: 450px; height: 100%;
+      background: #1e293b; opacity: .5;
+      clip-path: polygon(30% 0, 100% 0, 100% 100%, 0% 100%);
+    }
+    .bg-lines-right {
+      position: absolute; top: 0; right: 0;
+      width: 50%; height: 100%;
+      background: rgba(30,41,59,.4);
+      clip-path: polygon(20% 0, 100% 0, 100% 100%, 0% 100%);
+    }
+    .bg-circle-tl {
+      position: absolute; top: -100px; right: -100px;
+      width: 500px; height: 500px;
+      border-radius: 50%;
+      border: 2px solid rgba(16,185,129,.1);
+    }
+    .bg-grid-green {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(16,185,129,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16,185,129,.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+    .bg-grid-violet {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(139,92,246,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139,92,246,.05) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+    }
+    .bg-gear-icon {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      font-size: 560px; color: #eab308;
+      opacity: .03; pointer-events: none;
+    }
+
+    /* ── HEADER (shared) ── */
+    .slide-header {
+      padding: 34px 60px 18px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      background: #0f172a;
+      flex-shrink: 0;
+    }
+    .slide-header .hicon {
+      font-size: 28px;
+      margin-right: 20px;
+      padding: 12px;
+      border-radius: 8px;
+    }
+    .slide-header h2 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 38px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .slide-header .sub {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-top: 4px;
+      font-weight: 400;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    /* ── FOOTER (shared) ── */
+    .slide-footer {
+      padding: 12px 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #64748b;
+      border-top: 1px solid rgba(255,255,255,.05);
+      background: #0f172a;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: bold;
+      margin-right: 6px;
+    }
+
+    /* ════════════════════
+       SLIDE 1 – PORTADA
+       ════════════════════ */
+    .s1-accent-bar {
+      position: absolute; top: 0; left: 0;
+      width: 12px; height: 100%;
+      background: #3b82f6; z-index: 2;
+    }
+    .s1-accent-corner {
+      position: absolute; bottom: 0; right: 0;
+      width: 300px; height: 300px;
+      background: #1e293b;
+      clip-path: polygon(100% 0, 100% 100%, 0 100%);
+      z-index: 2;
+    }
+    .s1-footer-strip {
+      position: absolute; bottom: 0; left: 0;
+      width: 100%; height: 8px;
+      background: #3b82f6; z-index: 20;
+    }
+    .s1-content {
+      position: relative; z-index: 10;
+      display: flex; flex-direction: row;
+      height: 100%;
+      padding: 0 80px 0 100px;
+      align-items: center;
+    }
+    .s1-text { flex: 1.5; padding-right: 40px; }
+    .s1-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 62px; line-height: 1.1;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    .s1-title .hl { color: #3b82f6; }
+    .s1-sub {
+      font-size: 24px; font-weight: 300;
+      color: #94a3b8; line-height: 1.4;
+      border-left: 4px solid #3b82f6;
+      padding-left: 20px;
+      margin-bottom: 40px;
+    }
+    .s1-meta {
+      display: flex; gap: 30px;
+      margin-top: 60px;
+      font-size: 14px; color: #64748b;
+      border-top: 1px solid #334155;
+      padding-top: 20px;
+    }
+    .s1-meta-item { display: flex; align-items: center; gap: 10px; }
+    .s1-meta-item i { color: #3b82f6; }
+    .s1-visual { flex: 1; display: flex; justify-content: center; align-items: center; }
+    .icon-circle {
+      width: 340px; height: 340px;
+      border-radius: 50%;
+      background: rgba(30,41,59,.6);
+      border: 2px solid #3b82f6;
+      display: flex; justify-content: center; align-items: center;
+      position: relative;
+      box-shadow: 0 0 50px rgba(59,130,246,.15);
+    }
+    .icon-circle .main-icon { font-size: 130px; color: #e2e8f0; }
+    .tech-badge {
+      position: absolute;
+      background: #3b82f6; color: #fff;
+      padding: 8px 16px; border-radius: 20px;
+      font-size: 13px; font-weight: 700;
+      font-family: 'Oswald', sans-serif;
+      bottom: -20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,.2);
+    }
+
+    /* ════════════════════════════
+       SLIDE 2 – NO FUNCIONALES
+       ════════════════════════════ */
+    .s2-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 26px;
+      flex: 1;
+      padding: 22px 60px;
+    }
+    .spec-card {
+      background: #1e293b;
+      border-radius: 6px;
+      padding: 0 18px;
+      display: flex; align-items: center;
+      border-left: 4px solid #10b981;
+    }
+    .spec-card:nth-child(even) { background: rgba(30,41,59,.8); }
+    .spec-icon { font-size: 18px; color: #10b981; width: 36px; display: flex; justify-content: center; }
+    .spec-details { margin-left: 14px; flex: 1; display: flex; justify-content: space-between; align-items: center; }
+    .spec-label { font-weight: 500; color: #cbd5e1; font-size: 15px; }
+    .spec-value {
+      font-family: 'Roboto Mono', monospace;
+      font-weight: 700; color: #fff; font-size: 13px;
+      background: rgba(16,185,129,.1);
+      padding: 5px 10px; border-radius: 4px;
+      border: 1px solid rgba(16,185,129,.2);
+      min-width: 110px; text-align: center;
+    }
+
+    /* ══════════════════════════
+       SLIDE 3 – AUTOMATIZACIÓN
+       ══════════════════════════ */
+    .s3-content { flex: 1; padding: 22px 60px; display: flex; gap: 26px; }
+    .s3-col { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+    .feature-card {
+      background: rgba(30,41,59,.7);
+      border-radius: 12px; padding: 20px;
+      border-left: 5px solid; flex: 1;
+      display: flex; flex-direction: column;
+    }
+    .card-teleop { border-color: #3b82f6; }
+    .card-auto   { border-color: #06b6d4; }
+    .fc-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px;
+      border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: 10px;
+    }
+    .fc-title { font-family: 'Oswald', sans-serif; font-size: 20px; color: #e2e8f0; }
+    .fc-code { font-size: 11px; color: #94a3b8; background: rgba(0,0,0,.3); padding: 3px 7px; border-radius: 4px; }
+    .feat-list { list-style: none; }
+    .feat-item { display: flex; align-items: center; margin-bottom: 9px; padding: 7px 10px; background: rgba(255,255,255,.03); border-radius: 6px; font-size: 14px; }
+    .feat-item .fi { margin-right: 10px; width: 20px; text-align: center; font-size: 13px; }
+    .card-teleop .fi { color: #3b82f6; }
+    .card-auto   .fi { color: #06b6d4; }
+    .class-box {
+      background: rgba(15,23,42,.8);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px; padding: 16px;
+    }
+    .class-box h3 { font-family: 'Oswald', sans-serif; font-size: 17px; color: #e2e8f0; }
+    .class-levels { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; }
+    .level-item { flex: 1; text-align: center; padding: 9px; border-radius: 8px; background: rgba(0,0,0,.2); }
+    .level-name { font-weight: bold; display: block; font-family: 'Oswald', sans-serif; font-size: 14px; margin-bottom: 2px; }
+    .level-bar { height: 4px; width: 100%; border-radius: 2px; margin-top: 6px; }
+    .lv-low  { color: #10b981; } .lv-low  .level-bar { background: #10b981; }
+    .lv-mod  { color: #f59e0b; } .lv-mod  .level-bar { background: #f59e0b; }
+    .lv-crit { color: #ef4444; } .lv-crit .level-bar { background: #ef4444; }
+
+    /* ════════════════════════
+       SLIDE 4 – VISIÓN ARTIFICIAL
+       ════════════════════════ */
+    .s4-grid {
+      flex: 1; padding: 30px 60px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 26px;
+    }
+    .metric-card {
+      background: #1e293b; border-radius: 12px;
+      padding: 22px 26px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      border: 1px solid rgba(255,255,255,.05);
+      box-shadow: 0 10px 15px rgba(0,0,0,.3);
+    }
+    .metric-hdr { display: flex; align-items: center; margin-bottom: 12px; }
+    .metric-icon {
+      width: 46px; height: 46px; border-radius: 10px;
+      background: rgba(16,185,129,.1); color: #10b981;
+      display: flex; justify-content: center; align-items: center;
+      font-size: 22px; margin-right: 14px;
+    }
+    .metric-title { font-size: 17px; color: #cbd5e1; font-weight: 500; }
+    .metric-val { font-family: 'Oswald', sans-serif; font-size: 44px; color: #fff; line-height: 1; }
+    .metric-unit { font-family: 'Roboto Mono', monospace; font-size: 14px; color: #94a3b8; margin-left: 5px; }
+    .prog-wrap { width: 100%; background: rgba(0,0,0,.3); height: 10px; border-radius: 5px; overflow: hidden; margin-top: 11px; }
+    .prog-bar   { height: 100%; background: #10b981; border-radius: 5px; }
+    .prog-amber { background: #f59e0b; }
+    .metric-foot { display: flex; justify-content: space-between; margin-top: 7px; font-size: 11px; color: #64748b; font-family: 'Roboto Mono', monospace; }
+    .tag { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .tag-ai   { background: rgba(59,130,246,.2); color: #60a5fa; border: 1px solid rgba(59,130,246,.3); }
+    .tag-data { background: rgba(139,92,246,.2); color: #a78bfa; border: 1px solid rgba(139,92,246,.3); }
+
+    /* ════════════════════════
+       SLIDE 5 – INTERFAZ
+       ════════════════════════ */
+    .s5-content { flex: 1; padding: 28px 60px; display: flex; gap: 26px; }
+    .iface-card {
+      flex: 1; background: #1e293b;
+      border-radius: 12px; border-top: 4px solid #8b5cf6;
+      padding: 22px; display: flex; flex-direction: column;
+      box-shadow: 0 10px 15px rgba(0,0,0,.3);
+    }
+    .ic-header {
+      display: flex; align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: 12px;
+    }
+    .ic-icon {
+      font-size: 22px; color: #a78bfa;
+      background: rgba(139,92,246,.1);
+      width: 46px; height: 46px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin-right: 14px;
+    }
+    .ic-title { font-family: 'Oswald', sans-serif; font-size: 20px; color: #f1f5f9; }
+    .ic-list { list-style: none; flex-grow: 1; }
+    .ic-item { display: flex; align-items: flex-start; margin-bottom: 12px; padding: 9px; background: rgba(255,255,255,.02); border-radius: 8px; }
+    .ic-item i { color: #8b5cf6; margin-right: 10px; margin-top: 3px; font-size: 13px; }
+    .ic-item h4 { font-weight: 500; font-size: 14px; color: #e2e8f0; margin-bottom: 2px; }
+    .ic-item p  { font-size: 12px; color: #94a3b8; line-height: 1.4; }
+    .ic-visual {
+      margin-top: 12px; padding: 12px;
+      background: rgba(0,0,0,.2); border-radius: 8px;
+      display: flex; justify-content: center; align-items: center; height: 54px;
+    }
+    .traffic-light { display: flex; gap: 10px; background: #334155; padding: 7px 11px; border-radius: 20px; }
+    .tl { width: 15px; height: 15px; border-radius: 50%; }
+    .tl-r { background: #ef4444; box-shadow: 0 0 9px #ef4444; }
+    .tl-y { background: #f59e0b; box-shadow: 0 0 9px #f59e0b; }
+    .tl-g { background: #10b981; box-shadow: 0 0 9px #10b981; }
+    .dev-row { display: flex; gap: 18px; color: #cbd5e1; font-size: 19px; }
+    .live-badge { display: flex; align-items: center; gap: 6px; background: rgba(239,68,68,.2); color: #ef4444; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; font-family: 'Roboto Mono', monospace; }
+    .live-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; }
+
+    /* ════════════════════════
+       SLIDE 6 – SEGURIDAD
+       ════════════════════════ */
+    .s6-content {
+      flex: 1; padding: 30px 60px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .col-side { flex: 1; display: flex; flex-direction: column; gap: 18px; justify-content: center; }
+    .col-center { flex: 0 0 340px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .shield-visual { position: relative; width: 200px; height: 240px; display: flex; justify-content: center; align-items: center; }
+    .shield-icon-lg { font-size: 170px; color: #ef4444; filter: drop-shadow(0 0 20px rgba(239,68,68,.4)); z-index: 2; }
+    .shield-inner   { position: absolute; font-size: 55px; color: #0f172a; z-index: 3; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+    .shield-ring    { position: absolute; width: 290px; height: 290px; border: 2px dashed rgba(239,68,68,.3); border-radius: 50%; z-index: 1; animation: spin 20s linear infinite; }
+    .shield-label   { margin-top: 28px; font-family: 'Oswald', sans-serif; font-size: 22px; color: #ef4444; letter-spacing: 2px; text-align: center; background: rgba(239,68,68,.1); padding: 5px 18px; border-radius: 20px; border: 1px solid rgba(239,68,68,.3); }
+    .safety-card { background: #1e293b; border-radius: 8px; padding: 18px; border-left: 4px solid #ef4444; display: flex; align-items: flex-start; box-shadow: 0 4px 6px rgba(0,0,0,.2); }
+    .sc-icon { min-width: 38px; height: 38px; background: rgba(239,68,68,.15); color: #ef4444; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 14px; font-size: 16px; }
+    .sc-body h3 { font-weight: 700; font-size: 15px; color: #f1f5f9; margin-bottom: 4px; }
+    .sc-body p  { font-size: 13px; color: #94a3b8; line-height: 1.4; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    /* ════════════════════════
+       SLIDE 7 – MANTENIMIENTO
+       ════════════════════════ */
+    .s7-content { flex: 1; padding: 28px 60px; display: flex; align-items: center; }
+    .s7-grid { display: grid; grid-template-columns: 1fr 360px 1fr; width: 100%; height: 100%; gap: 20px; }
+    .col-feat { display: flex; flex-direction: column; justify-content: center; gap: 20px; }
+    .maint-item {
+      background: #1e293b; border-radius: 10px;
+      padding: 18px; display: flex; align-items: center;
+      border: 1px solid rgba(255,255,255,.05); position: relative;
+    }
+    .maint-item::before { content: ''; position: absolute; width: 4px; height: 100%; left: 0; top: 0; background: #eab308; border-radius: 4px 0 0 4px; }
+    .maint-icon { width: 48px; height: 48px; background: rgba(234,179,8,.1); border-radius: 10px; display: flex; justify-content: center; align-items: center; color: #eab308; font-size: 22px; margin-right: 14px; flex-shrink: 0; }
+    .maint-body h3 { font-weight: 700; font-size: 15px; color: #f1f5f9; margin-bottom: 3px; }
+    .maint-body p  { font-size: 13px; color: #94a3b8; line-height: 1.4; }
+    .exploded { width: 100%; height: 100%; position: relative; display: flex; justify-content: center; align-items: center; }
+    .conn-line { position: absolute; background: #475569; z-index: 1; }
+    .part { position: absolute; background: #334155; border: 1px solid #475569; display: flex; justify-content: center; align-items: center; color: #94a3b8; font-family: 'Roboto Mono', monospace; font-size: 10px; }
+    .part-core { width: 130px; height: 130px; background: #1e293b; border: 2px solid #eab308; border-radius: 12px; z-index: 10; flex-direction: column; color: #eab308; }
+    .part-wheel { width: 56px; height: 56px; border-radius: 50%; border: 2px dashed #64748b; }
+    .part-prop  { width: 76px; height: 38px; border-radius: 4px; }
+    .w1 { transform: translate(-96px,-76px); } .w2 { transform: translate(96px,-76px); }
+    .w3 { transform: translate(-96px,76px);  } .w4 { transform: translate(96px,76px);  }
+    .p1 { transform: translate(0,-106px); }   .p2 { transform: translate(0,106px);   }
+    .stats-bar { display: flex; justify-content: space-between; background: #1e293b; padding: 14px 20px; border-radius: 8px; border-top: 1px solid #eab308; }
+    .stat-val { font-family: 'Oswald', sans-serif; font-size: 22px; color: #fff; display: block; }
+    .stat-lbl { font-size: 11px; color: #94a3b8; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Requisitos del Sistema Robótico de Inspección Vertical</h1>
+  <p>Especificación Técnica v1.0 &nbsp;·&nbsp; IEEE Robotics Std. &nbsp;·&nbsp; 2026-02-26</p>
+</header>
+
+<div id="slides">
+
+  <!-- ══════════════════════════════════════
+       SLIDE 1 – PORTADA
+       ══════════════════════════════════════ -->
+  <div class="slide-outer">
+    <div class="slide-label">Slide 1 · Portada</div>
+    <div class="slide-scaler"><div class="slide-canvas slide">
+      <div class="s1-accent-bar"></div>
+      <div class="grid-overlay"></div>
+      <div class="s1-accent-corner"></div>
+      <div class="s1-content">
+        <div class="s1-text">
+          <div class="s1-title">Requisitos del Sistema Robótico de <span class="hl">Inspección Vertical</span></div>
+          <div class="s1-sub">Robot de inspección con visión artificial para detección automatizada de grietas en estructuras verticales.</div>
+          <div class="s1-meta">
+            <div class="s1-meta-item"><i class="fas fa-calendar-alt"></i><span>2026-02-26</span></div>
+            <div class="s1-meta-item"><i class="fas fa-project-diagram"></i><span>Especificación Técnica v1.0</span></div>
+            <div class="s1-meta-item"><i class="fas fa-robot"></i><span>IEEE Robotics Std.</span></div>
+          </div>
+        </div>
+        <div class="s1-visual">
+          <div class="icon-circle">
+            <i class="fas fa-spider main-icon"></i>
+            <div class="tech-badge">VISION SYSTEM ENABLED</div>
+          </div>
+        </div>
+      </div>
+      <div class="s1-footer-strip"></div>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SLIDE 2 – NO FUNCIONALES
+       ══════════════════════════════════════ -->
+  <div class="slide-outer">
+    <div class="slide-label">Slide 2 · Requisitos No Funcionales</div>
+    <div class="slide-scaler"><div class="slide-canvas slide">
+      <div class="bg-accent-shape"></div>
+      <div class="bg-grid-green"></div>
+      <div class="slide-header" style="border-bottom:2px solid #10b981">
+        <div class="hicon" style="color:#10b981;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3)"><i class="fas fa-sliders-h"></i></div>
+        <div><h2>Requisitos No Funcionales</h2><p class="sub">Especificaciones técnicas, restricciones físicas y estándares de calidad del sistema.</p></div>
+      </div>
+      <div class="s2-grid">
+        <div class="spec-card"><div class="spec-icon"><i class="fas fa-hourglass-half"></i></div><div class="spec-details"><span class="spec-label">Operatividad mínima</span><span class="spec-value">15 min</span></div></div>
+        <div class="spec-card"><div class="spec-icon"><i class="fas fa-compress-alt"></i></div><div class="spec-details"><span class="spec-label">Resistencia compresión</span><span class="spec-value">10–15 N</span></div></div>
+        <div class="spec-card"><div class="spec-icon"><i class="fas fa-weight-hanging"></i></div><div class="spec-details"><span class="spec-label">Peso máximo</span><span class="spec-value">2.0 kg</span></div></div>
+        <div class="spec-card"><div class="spec-icon"><i class="fas fa-ruler-combined"></i></div><div class="spec-details"><span class="spec-label">Dimensiones máx.</span><span class="spec-value">1000×1000 mm</span></div></div>
+        <div class="spec-card"><div class="spec-icon"><i class="fas fa-shield-virus"></i></div><div class="spec-details"><span class="spec-label">Protección eléctrica</span><span class="spec-value">Impermeable</span></div></div>
+        <div class="spec-card"><div class="spec-icon"><i class="fas fa-volume-mute"></i></div><div class="spec-details"><span class="spec-label">Emisión sonora</span><span class="spec-value">Bajo Nivel</span></div></div>
+        <div class="spec-card"><div class="spec-icon"><i class="fas fa-plug"></i></div><div class="spec-details"><span class="spec-label">Alimentación</span><span class="spec-value">220V AC</span></div></div>
+        <div class="spec-card"><div class="spec-icon"><i class="fas fa-tint"></i></div><div class="spec-details"><span class="spec-label">Color del chasis</span><span class="spec-value">Negro</span></div></div>
+        <div class="spec-card"><div class="spec-icon"><i class="fas fa-magnet"></i></div><div class="spec-details"><span class="spec-label">Atracción a pared</span><span class="spec-value">Constante</span></div></div>
+        <div class="spec-card"><div class="spec-icon"><i class="fas fa-layer-group"></i></div><div class="spec-details"><span class="spec-label">Material fabricación</span><span class="spec-value">Fibra Carbono</span></div></div>
+        <div class="spec-card" style="grid-column:1/-1"><div class="spec-icon"><i class="fas fa-bullseye"></i></div><div class="spec-details"><span class="spec-label">Material ruedas</span><span class="spec-value">Alta Fricción</span></div></div>
+      </div>
+      <div class="slide-footer"><span></span><span>Página 05</span></div>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SLIDE 3 – RF AUTOMATIZACIÓN
+       ══════════════════════════════════════ -->
+  <div class="slide-outer">
+    <div class="slide-label">Slide 3 · RF – Automatización</div>
+    <div class="slide-scaler"><div class="slide-canvas slide">
+      <div class="bg-lines-right"></div>
+      <div class="slide-header" style="border-bottom:1px solid rgba(59,130,246,.2)">
+        <div class="hicon" style="color:#06b6d4;background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.3)"><i class="fas fa-robot"></i></div>
+        <div><h2>Requisitos Funcionales – Automatización</h2><p class="sub">Modos de operación y sistemas de control lógico.</p></div>
+      </div>
+      <div class="s3-content">
+        <div class="s3-col">
+          <div class="feature-card card-teleop">
+            <div class="fc-header"><span class="fc-title">Teleoperación</span><span class="fc-code">ERU-AUT-01</span></div>
+            <ul class="feat-list">
+              <li class="feat-item"><span class="fi"><i class="fas fa-arrow-up"></i></span>Avanzar (Control lineal)</li>
+              <li class="feat-item"><span class="fi"><i class="fas fa-arrow-down"></i></span>Retroceder (Reversa controlada)</li>
+              <li class="feat-item"><span class="fi"><i class="fas fa-arrows-alt-v"></i></span>Ascender / Descender (Eje vertical)</li>
+              <li class="feat-item"><span class="fi"><i class="fas fa-stop-circle"></i></span>Detener (Frenado de emergencia)</li>
+              <li class="feat-item"><span class="fi"><i class="fas fa-flag-checkered"></i></span>Finalizar misión (Retorno seguro)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="s3-col">
+          <div class="feature-card card-auto" style="flex:0 0 auto">
+            <div class="fc-header"><span class="fc-title">Modo Semiautónomo</span><span class="fc-code">ERU-AUT-02</span></div>
+            <ul class="feat-list">
+              <li class="feat-item"><span class="fi"><i class="fas fa-balance-scale"></i></span>Control activo de estabilidad</li>
+              <li class="feat-item"><span class="fi"><i class="fas fa-user-shield"></i></span>Reducción de carga cognitiva del operador</li>
+              <li class="feat-item"><span class="fi"><i class="fas fa-anchor"></i></span>Detención estable automática</li>
+            </ul>
+          </div>
+          <div class="class-box">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><i class="fas fa-chart-bar" style="color:#94a3b8"></i><h3>Clasificación Automática de Daño</h3></div>
+            <div class="class-levels">
+              <div class="level-item lv-low"><span class="level-name">LEVE</span><span style="font-size:11px;opacity:.8">Superficial</span><div class="level-bar"></div></div>
+              <div class="level-item lv-mod"><span class="level-name">MODERADO</span><span style="font-size:11px;opacity:.8">Estructural</span><div class="level-bar"></div></div>
+              <div class="level-item lv-crit"><span class="level-name">CRÍTICO</span><span style="font-size:11px;opacity:.8">Riesgo Inmediato</span><div class="level-bar"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span></span><span>Página 04</span></div>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SLIDE 4 – VISIÓN ARTIFICIAL
+       ══════════════════════════════════════ -->
+  <div class="slide-outer">
+    <div class="slide-label">Slide 4 · Visión Artificial</div>
+    <div class="slide-scaler"><div class="slide-canvas slide">
+      <div class="bg-grid-green"></div>
+      <div class="bg-circle-tl"></div>
+      <div class="slide-header" style="border-bottom:2px solid #10b981">
+        <div class="hicon" style="color:#10b981;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3)"><i class="fas fa-eye"></i></div>
+        <div><h2>Visión Artificial</h2><p class="sub">Métricas de rendimiento y requisitos del subsistema de detección.</p></div>
+      </div>
+      <div class="s4-grid">
+        <div class="metric-card">
+          <div class="metric-hdr"><div class="metric-icon"><i class="fas fa-network-wired"></i></div><span class="metric-title">Arquitectura</span></div>
+          <div>
+            <div class="metric-val">YOLO <span style="font-size:24px;color:#94a3b8">v8</span></div>
+            <div class="metric-foot"><span class="tag tag-ai">Object Detection</span><span>Real-time</span></div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-hdr"><div class="metric-icon"><i class="fas fa-images"></i></div><span class="metric-title">Dataset Mínimo</span></div>
+          <div>
+            <div class="metric-val">200 <span class="metric-unit">imágenes</span></div>
+            <div class="metric-foot"><span class="tag tag-data">Annotated</span><span>Grietas / Defectos</span></div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-hdr"><div class="metric-icon"><i class="fas fa-crosshairs"></i></div><span class="metric-title">Precisión (mAP)</span></div>
+          <div>
+            <div style="display:flex;align-items:baseline"><span class="metric-val">&gt; 85</span><span class="metric-unit">%</span></div>
+            <div class="prog-wrap"><div class="prog-bar" style="width:85%"></div></div>
+            <div class="metric-foot"><span>Target: 90%</span><span>Min. Acceptable</span></div>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-hdr"><div class="metric-icon"><i class="fas fa-tachometer-alt"></i></div><span class="metric-title">Latencia Máxima</span></div>
+          <div>
+            <div style="display:flex;align-items:baseline"><span class="metric-val">1000</span><span class="metric-unit">ms / frame</span></div>
+            <div class="prog-wrap"><div class="prog-bar prog-amber" style="width:70%"></div></div>
+            <div class="metric-foot"><span>Processing Time</span><span>Max Limit</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span><span class="badge" style="background:#10b981;color:#0f172a">RNF-VIS</span>Visión por Computador y Machine Learning</span>
+        <span>Página 06</span>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SLIDE 5 – REQUISITOS DE INTERFAZ
+       ══════════════════════════════════════ -->
+  <div class="slide-outer">
+    <div class="slide-label">Slide 5 · Requisitos de Interfaz</div>
+    <div class="slide-scaler"><div class="slide-canvas slide">
+      <div class="bg-grid-violet"></div>
+      <div class="slide-header" style="border-bottom:2px solid #8b5cf6">
+        <div class="hicon" style="color:#8b5cf6;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3)"><i class="fas fa-desktop"></i></div>
+        <div><h2>Requisitos de Interfaz</h2><p class="sub">Especificaciones de interacción, visualización de datos y experiencia de usuario.</p></div>
+      </div>
+      <div class="s5-content">
+        <div class="iface-card">
+          <div class="ic-header"><div class="ic-icon"><i class="fas fa-satellite-dish"></i></div><span class="ic-title">Telemetría en Vivo</span></div>
+          <ul class="ic-list">
+            <li class="ic-item"><i class="fas fa-video"></i><div><h4>Video + Sensores</h4><p>HUD con superposición de datos críticos.</p></div></li>
+            <li class="ic-item"><i class="fas fa-layer-group"></i><div><h4>Mapas de Calor</h4><p>Visualización de zonas de daño estructural.</p></div></li>
+          </ul>
+          <div class="ic-visual"><div class="live-badge"><div class="live-dot"></div>LIVE STREAM</div></div>
+        </div>
+        <div class="iface-card">
+          <div class="ic-header"><div class="ic-icon"><i class="fas fa-bell"></i></div><span class="ic-title">Alertas</span></div>
+          <ul class="ic-list">
+            <li class="ic-item"><i class="fas fa-traffic-light"></i><div><h4>Sistema Semáforo</h4><p>Indicadores visuales de estado operativo.</p></div></li>
+            <li class="ic-item"><i class="fas fa-comment-alt"></i><div><h4>Notificaciones Push</h4><p>Alertas inmediatas al dispositivo operador.</p></div></li>
+            <li class="ic-item"><i class="fas fa-file-pdf"></i><div><h4>Reporte Automatizado</h4><p>Generación de informes PDF post-misión.</p></div></li>
+          </ul>
+          <div class="ic-visual"><div class="traffic-light"><div class="tl tl-r"></div><div class="tl tl-y"></div><div class="tl tl-g"></div></div></div>
+        </div>
+        <div class="iface-card">
+          <div class="ic-header"><div class="ic-icon"><i class="fas fa-globe"></i></div><span class="ic-title">Acceso</span></div>
+          <ul class="ic-list">
+            <li class="ic-item"><i class="fas fa-mobile-alt"></i><div><h4>Multiplataforma</h4><p>Compatible con Móvil, Tablet y PC.</p></div></li>
+            <li class="ic-item"><i class="fas fa-cloud-upload-alt"></i><div><h4>Sincronización Nube</h4><p>Respaldo automático de inspecciones.</p></div></li>
+            <li class="ic-item"><i class="fas fa-wifi"></i><div><h4>Modo Offline</h4><p>Buffer local para operación sin red.</p></div></li>
+          </ul>
+          <div class="ic-visual"><div class="dev-row"><i class="fas fa-mobile-alt"></i><i class="fas fa-tablet-alt"></i><i class="fas fa-laptop"></i></div></div>
+        </div>
+      </div>
+      <div class="slide-footer"><span></span><span>Página 07</span></div>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SLIDE 6 – SEGURIDAD
+       ══════════════════════════════════════ -->
+  <div class="slide-outer">
+    <div class="slide-label">Slide 6 · Requisitos de Seguridad</div>
+    <div class="slide-scaler"><div class="slide-canvas slide">
+      <div class="slide-header" style="border-bottom:2px solid #ef4444">
+        <div class="hicon" style="color:#ef4444;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3)"><i class="fas fa-shield-alt"></i></div>
+        <div><h2>Requisitos de Seguridad</h2><p class="sub">Protocolos de protección activa y redundancia de sistemas críticos.</p></div>
+      </div>
+      <div class="s6-content">
+        <div class="col-side">
+          <div class="safety-card"><div class="sc-icon"><i class="fas fa-sync-alt"></i></div><div class="sc-body"><h3>Detección de Vuelco</h3><p>Monitoreo continuo mediante IMU para identificar cambios bruscos de orientación.</p></div></div>
+          <div class="safety-card"><div class="sc-icon"><i class="fas fa-hand-paper"></i></div><div class="sc-body"><h3>Detención Automática</h3><p>Frenado de emergencia ante detección de inclinación peligrosa o pérdida de tracción.</p></div></div>
+        </div>
+        <div class="col-center">
+          <div class="shield-visual">
+            <div class="shield-ring"></div>
+            <i class="fas fa-shield-alt shield-icon-lg"></i>
+            <i class="fas fa-check shield-inner"></i>
+          </div>
+          <div class="shield-label">PROTECCIÓN ACTIVA</div>
+        </div>
+        <div class="col-side">
+          <div class="safety-card"><div class="sc-icon"><i class="fas fa-bolt"></i></div><div class="sc-body"><h3>Protección Sobrecorriente</h3><p>Sistemas de corte rápido para prevenir daños en motores y actuadores.</p></div></div>
+          <div class="safety-card"><div class="sc-icon"><i class="fas fa-microchip"></i></div><div class="sc-body"><h3>Fusibles Electrónicos</h3><p>Dispositivos rearmables para gestión inteligente de cargas críticas.</p></div></div>
+          <div class="safety-card"><div class="sc-icon"><i class="fas fa-random"></i></div><div class="sc-body"><h3>Aislamiento Galvánico</h3><p>Separación física entre etapas de potencia y electrónica de control sensible.</p></div></div>
+        </div>
+      </div>
+      <div class="slide-footer"><span></span><span>Página 08</span></div>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       SLIDE 7 – MANTENIMIENTO
+       ══════════════════════════════════════ -->
+  <div class="slide-outer">
+    <div class="slide-label">Slide 7 · Requisitos de Mantenimiento</div>
+    <div class="slide-scaler"><div class="slide-canvas slide">
+      <div class="bg-gear-icon"><i class="fas fa-cog"></i></div>
+      <div class="slide-header" style="border-bottom:2px solid #eab308">
+        <div class="hicon" style="color:#eab308;background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3)"><i class="fas fa-tools"></i></div>
+        <div><h2>Requisitos de Mantenimiento</h2><p class="sub">Estrategias para la sostenibilidad operativa y reparabilidad del sistema.</p></div>
+      </div>
+      <div class="s7-content">
+        <div class="s7-grid">
+          <div class="col-feat">
+            <div class="maint-item"><div class="maint-icon"><i class="fas fa-cubes"></i></div><div class="maint-body"><h3>Diseño Modular</h3><p>Arquitectura dividida en subsistemas independientes para facilitar el diagnóstico.</p></div></div>
+            <div class="maint-item"><div class="maint-icon"><i class="fas fa-sync"></i></div><div class="maint-body"><h3>Reemplazo Rápido</h3><p>Sistema "Plug &amp; Play" para ruedas y propulsores sin herramientas complejas.</p></div></div>
+            <div class="maint-item"><div class="maint-icon"><i class="fas fa-tags"></i></div><div class="maint-body"><h3>Componentes Low-Cost</h3><p>Uso de hardware comercial (COTS) para reducir costes de inventario.</p></div></div>
+          </div>
+          <div class="exploded">
+            <div class="conn-line" style="width:2px;height:230px"></div>
+            <div class="conn-line" style="width:210px;height:2px"></div>
+            <div class="part part-wheel w1"><i class="fas fa-dot-circle"></i></div>
+            <div class="part part-wheel w2"><i class="fas fa-dot-circle"></i></div>
+            <div class="part part-wheel w3"><i class="fas fa-dot-circle"></i></div>
+            <div class="part part-wheel w4"><i class="fas fa-dot-circle"></i></div>
+            <div class="part part-prop p1">MOTOR A</div>
+            <div class="part part-prop p2">MOTOR B</div>
+            <div class="part part-core" style="display:flex">
+              <i class="fas fa-microchip" style="font-size:36px;margin-bottom:7px"></i>
+              <span style="font-family:'Oswald',sans-serif;font-size:15px">CORE UNIT</span>
+            </div>
+          </div>
+          <div class="col-feat">
+            <div class="maint-item"><div class="maint-icon"><i class="fas fa-print"></i></div><div class="maint-body"><h3>Piezas Modulares</h3><p>Piezas imprimibles en 3D y firmware accesible para modificaciones.</p></div></div>
+            <div class="maint-item"><div class="maint-icon"><i class="fas fa-wrench"></i></div><div class="maint-body"><h3>Mantenimiento Local</h3><p>Procedimientos simplificados ejecutables por operadores en campo.</p></div></div>
+            <div class="stats-bar">
+              <div><span class="stat-val">15m</span><span class="stat-lbl">MTTR Estimado</span></div>
+              <div><span class="stat-val">&lt; $50</span><span class="stat-lbl">Coste Medio Repuesto</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer"><span></span><span>Página 10</span></div>
+    </div></div>
+  </div>
+
+</div><!-- /#slides -->
+
+<script>
+  // Scale each .slide-canvas to fit its .slide-scaler container
+  function scaleSlides() {
+    document.querySelectorAll('.slide-scaler').forEach(scaler => {
+      const canvas = scaler.querySelector('.slide-canvas');
+      const scale  = scaler.clientWidth / 1280;
+      canvas.style.transform = `scale(${scale})`;
+      scaler.style.height    = (720 * scale) + 'px';
+    });
+  }
+  scaleSlides();
+  window.addEventListener('resize', scaleSlides);
+</script>
+</body>
+</html>
